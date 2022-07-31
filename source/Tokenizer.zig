@@ -1,20 +1,8 @@
 const std = @import("std");
+const Token = @import("Token.zig");
 
 source: []const u8,
 current: usize = 0,
-
-const TokenKind = enum {
-    number,
-    plus,
-    minus,
-    asterisk,
-    slash,
-};
-
-const Token = struct {
-    kind: TokenKind,
-    start: usize,
-};
 
 pub fn next(tokenizer: *@This()) ?Token {
     var result = Token{ .kind = undefined, .start = tokenizer.current };
@@ -37,6 +25,14 @@ pub fn next(tokenizer: *@This()) ?Token {
             },
             '/' => {
                 result.kind = .slash;
+                break;
+            },
+            '(' => {
+                result.kind = .left_paren;
+                break;
+            },
+            ')' => {
+                result.kind = .right_paren;
                 break;
             },
             else => {
