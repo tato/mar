@@ -1,6 +1,6 @@
 const std = @import("std");
-const Vm = @import("Vm.zig");
-const bytecode = @import("bytecode.zig");
+const Vm = @import("../Vm.zig");
+const bytecode = @import("../bytecode.zig");
 
 fn runTest(code: []const u8, expect_stack: ?[]const i64) !void {
     var vm = Vm.init(std.testing.allocator);
