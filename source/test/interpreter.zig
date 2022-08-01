@@ -30,3 +30,11 @@ test "hello" {
     const program = "(1 + (111 - 3)) * (2 / 1)";
     try runInterpreterTest(program, &.{218});
 }
+
+test "more" {
+    const program = 
+        \\print(22 - 11)
+        \\print(33 + 44)
+    ;
+    _ = program;
+}
