@@ -7,7 +7,7 @@ current: u32 = 0,
 pub fn next(tokenizer: *@This()) Token {
     while (tokenizer.current < tokenizer.source.len) : (tokenizer.current += 1) {
         switch (tokenizer.source[tokenizer.current]) {
-            ' ', '\n', '\r', '\t' => continue,
+            ' ', '\r', '\t' => continue,
             else => break,
         }
     } else return Token{ .kind = .eof, .start = tokenizer.current };
@@ -17,6 +17,11 @@ pub fn next(tokenizer: *@This()) Token {
     while (tokenizer.current < tokenizer.source.len) : (tokenizer.current += 1) {
         const c = tokenizer.source[tokenizer.current];
         switch (c) {
+            '\n' => {
+                tokenizer.current += 1;
+                result.kind = .newline;
+                break;
+            },
             '+' => {
                 tokenizer.current += 1;
                 result.kind = .plus;
