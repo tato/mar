@@ -8,6 +8,7 @@ pub const OpCode = enum(u8) {
     sub,
     mul,
     div,
+    print,
     exit,
 };
 

@@ -1,6 +1,6 @@
 const std = @import("std");
+const bytecode = @import("bytecode.zig");
 const Vm = @This();
-const OpCode = @import("bytecode.zig").OpCode;
 
 allocator: std.mem.Allocator,
 ip: usize = 0,
@@ -15,9 +15,10 @@ pub fn deinit(vm: *Vm) void {
     vm.* = undefined;
 }
 
-pub fn run(vm: *Vm, code: []const u8) std.mem.Allocator.Error!void {
+pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
+    const code = chunk.code.items;
     while (vm.ip < code.len) {
-        const instr = @intToEnum(OpCode, code[vm.ip]);
+        const instr = @intToEnum(bytecode.OpCode, code[vm.ip]);
         vm.ip += 1;
 
         switch (instr) {
@@ -45,6 +46,10 @@ pub fn run(vm: *Vm, code: []const u8) std.mem.Allocator.Error!void {
                 const right = vm.stack.pop();
                 const left = vm.stack.pop();
                 try vm.stack.append(vm.allocator, @divFloor(left, right));
+            },
+            .print => {
+                const top = vm.stack.pop();
+                try output.print("{d}\n", .{top});
             },
             .exit => break,
         }

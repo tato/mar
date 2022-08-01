@@ -7,10 +7,10 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-    const stdout = std.io.getStdOut();
 
     const args = try std.process.argsAlloc(arena.allocator());
     if (args.len < 2) {
+        const stdout = std.io.getStdOut();
         try stdout.writeAll(
             \\mar language interpreter 🐚
             \\Usage: mar [input file]
@@ -22,14 +22,19 @@ pub fn main() !void {
     try runInterpreter(arena.allocator(), source);
 }
 
-fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!void {
+fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) !void {
     var code = try compile.compile(allocator, source);
     defer code.deinit();
 
     var vm = Vm.init(allocator);
     defer vm.deinit();
 
-    try vm.run(code.code.items);
+    const stdout = std.io.getStdOut();
+    var buffered = std.io.bufferedWriter(stdout.writer());
+
+    try vm.run(code, buffered.writer());
+
+    try buffered.flush();
 }
 
 comptime {

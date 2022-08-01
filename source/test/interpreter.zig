@@ -1,40 +1,41 @@
 const std = @import("std");
-const Vm = @import("../Vm.zig");
 const bytecode = @import("../bytecode.zig");
-const compile = @import("../compile.zig");
-
-fn runInterpreterTest(source: []const u8, expect_stack: []const i64) !void {
-    const allocator = std.testing.allocator;
-
-    var code = try compile.compile(allocator, source);
-    defer code.deinit();
-
-    var vm = Vm.init(allocator);
-    defer vm.deinit();
-
-    try vm.run(code.code.items);
-    try std.testing.expectEqualSlices(i64, expect_stack, vm.stack.items);
-}
+const runInterpreterTest = @import("util.zig").runInterpreterTest;
 
 test "toosimple" {
     const program = "1 + 1";
-    try runInterpreterTest(program, &.{2});
+    var result = try runInterpreterTest(program);
+    defer result.deinit();
+    try std.testing.expectEqualSlices(i64, &.{2}, result.stack);
 }
 
 test "aparen" {
     const program = "(1 + 1)";
-    try runInterpreterTest(program, &.{2});
+    var result = try runInterpreterTest(program);
+    defer result.deinit();
+    try std.testing.expectEqualSlices(i64, &.{2}, result.stack);
 }
 
 test "hello" {
     const program = "(1 + (111 - 3)) * (2 / 1)";
-    try runInterpreterTest(program, &.{218});
+    var result = try runInterpreterTest(program);
+    defer result.deinit();
+    try std.testing.expectEqualSlices(i64, &.{218}, result.stack);
 }
 
 test "more" {
-    const program = 
+    if (true) return error.SkipZigTest;
+    const program =
         \\print(22 - 11)
         \\print(33 + 44)
     ;
-    _ = program;
+    var result = try runInterpreterTest(program);
+    defer result.deinit();
+    
+    const expected =
+        \\11
+        \\77
+        \\
+    ;
+    try std.testing.expectEqualSlices(u8, expected, result.output);
 }

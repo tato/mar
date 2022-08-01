@@ -1,19 +1,12 @@
 const std = @import("std");
-const Vm = @import("../Vm.zig");
 const bytecode = @import("../bytecode.zig");
-
-fn runTest(code: []const u8, expect_stack: ?[]const i64) !void {
-    var vm = Vm.init(std.testing.allocator);
-    defer vm.deinit();
-
-    try vm.run(code);
-    if (expect_stack) |expect|
-        try std.testing.expectEqualSlices(i64, expect, vm.stack.items);
-}
+const runTest = @import("util.zig").runTest;
 
 test "bytecode exit" {
-    const code = std.mem.sliceAsBytes(&[_]bytecode.OpCode{.exit});
-    try runTest(code, &.{});
+    var code = bytecode.Chunk.init(std.testing.allocator);
+    defer code.deinit();
+    try code.write(.exit);
+    _ = try runTest(code);
 }
 
 test "bytecode simple math" {
@@ -29,5 +22,28 @@ test "bytecode simple math" {
     try code.write(.div);
     try code.write(.exit);
 
-    try runTest(code.code.items, &.{104});
+    var result = try runTest(code);
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{104}, result.stack);
+}
+
+test "printing" {
+    var code = bytecode.Chunk.init(std.testing.allocator);
+    defer code.deinit();
+
+    try code.writeLoad(101);
+    try code.writeLoad(99);
+    try code.write(.sub);
+    try code.write(.print);
+    try code.write(.exit);
+
+    var result = try runTest(code);
+    defer result.deinit();
+
+    const expected_output =
+        \\2
+        \\
+    ;
+    try std.testing.expectEqualSlices(u8, expected_output, result.output);
 }
