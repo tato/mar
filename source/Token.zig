@@ -2,6 +2,8 @@ kind: Kind,
 start: u32,
 
 pub const Kind = enum(u32) {
+    identifier,
+    print,
     integer,
     plus,
     minus,

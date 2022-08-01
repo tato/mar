@@ -48,9 +48,20 @@ pub fn next(tokenizer: *@This()) Token {
                 break;
             },
             else => {
-                if (c >= '0' and c <= '9') {
+                if (std.ascii.isDigit(c)) {
                     tokenizer.tokenizeInteger();
                     result.kind = .integer;
+                    break;
+                }
+
+                if (c == '_' or std.ascii.isAlpha(c)) {
+                    tokenizer.tokenizeIdent();
+                    const ident = tokenizer.source[result.start..tokenizer.current];
+                    if (std.mem.eql(u8, "print", ident)) {
+                        result.kind = .print;
+                    } else {
+                        result.kind = .identifier;
+                    }
                     break;
                 }
 
@@ -69,8 +80,14 @@ pub fn next(tokenizer: *@This()) Token {
 fn tokenizeInteger(tokenizer: *@This()) void {
     while (tokenizer.current < tokenizer.source.len) : (tokenizer.current += 1) {
         const c = tokenizer.source[tokenizer.current];
-        const is_number = c >= '0' and c <= '9';
-        if (!is_number) break;
+        if (!std.ascii.isDigit(c)) break;
+    }
+}
+
+fn tokenizeIdent(tokenizer: *@This()) void {
+    while (tokenizer.current < tokenizer.source.len) : (tokenizer.current += 1) {
+        const c = tokenizer.source[tokenizer.current];
+        if (c != '_' and !std.ascii.isAlNum(c)) break;
     }
 }
 
