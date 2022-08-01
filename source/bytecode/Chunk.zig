@@ -29,14 +29,15 @@ pub fn writeLoad(cw: *Chunk, val: i64) !void {
 
 pub fn dump(chunk: *Chunk, writer: anytype) !void {
     var ip: usize = 0;
+    const code = chunk.code.items;
 
-    while (ip < chunk.code.len) {
-        const instr = @intToEnum(OpCode, chunk.code[ip]);
+    while (ip < code.len) {
+        const instr = @intToEnum(OpCode, code[ip]);
         ip += 1;
 
         switch (instr) {
             .load => {
-                const val = std.mem.readIntLittle(i64, chunk.code[ip..][0..8]);
+                const val = std.mem.readIntLittle(i64, code[ip..][0..8]);
                 ip += 8;
                 try writer.print("LOAD {d}\n", .{val});
             },
@@ -44,6 +45,7 @@ pub fn dump(chunk: *Chunk, writer: anytype) !void {
             .sub => try writer.writeAll("SUB\n"),
             .mul => try writer.writeAll("MUL\n"),
             .div => try writer.writeAll("DIV\n"),
+            .print => try writer.writeAll("PRINT\n"),
             .exit => try writer.writeAll("EXIT\n"),
         }
     }

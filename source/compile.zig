@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_options = @import("build_options");
 const Token = @import("Token.zig");
 const Tokenizer = @import("Tokenizer.zig");
 const bytecode = @import("bytecode.zig");
@@ -7,6 +8,10 @@ pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocat
     var parser = Parser.init(allocator, source);
     try parser.expression();
     try parser.chunk.write(.exit);
+
+    if (build_options.dump)
+        parser.chunk.dump(std.io.getStdErr().writer()) catch @panic("👹 Dump failed");
+
     parser.chunk.code.shrinkAndFree(parser.chunk.code.items.len);
     return parser.chunk;
 }
