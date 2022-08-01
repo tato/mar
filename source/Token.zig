@@ -9,4 +9,6 @@ pub const Kind = enum(u32) {
     slash,
     left_paren,
     right_paren,
+    err,
+    eof,
 };

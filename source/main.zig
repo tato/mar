@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Tokenizer = @import("Tokenizer.zig");
+const parse = @import("parse.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -18,13 +18,22 @@ pub fn main() !void {
     }
 
     const source = try std.fs.cwd().readFileAlloc(arena.allocator(), args[1], 1<<32);
-
-    var tokenizer = Tokenizer{ .source = source };
-    while (tokenizer.next()) |token| {
-        try stdout.writer().print("{any}\n", .{ token });
-    }
+    try runInterpreter(arena.allocator(), source);
 }
 
-test "basic test" {
-    try std.testing.expectEqual(10, 3 + 7);
+fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) !void {
+    var ast = try parse.parse(allocator, source);
+    defer ast.deinit(allocator);
+
+    std.debug.print("{any}\n", .{ast});
+}
+
+test "toosimple" {
+    const program = @embedFile("../mar/toosimple.mar");
+    try runInterpreter(std.testing.allocator, program);
+}
+
+test "hello" {
+    const program = @embedFile("../mar/hello.mar");
+    try runInterpreter(std.testing.allocator, program);
 }

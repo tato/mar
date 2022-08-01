@@ -2,9 +2,9 @@ const std = @import("std");
 const Token = @import("Token.zig");
 
 source: []const u8,
-current: usize = 0,
+current: u32 = 0,
 
-pub fn next(tokenizer: *@This()) ?Token {
+pub fn next(tokenizer: *@This()) Token {
     var result = Token{ .kind = undefined, .start = tokenizer.current };
 
     while (tokenizer.current < tokenizer.source.len) : (tokenizer.current += 1) {
@@ -42,9 +42,15 @@ pub fn next(tokenizer: *@This()) ?Token {
                     result.kind = .number;
                     break;
                 }
+                
+                result.kind = .err;
+                return result;
             },
         }
-    } else return null;
+    } else {
+        result.kind = .eof;
+        return result;
+    }
 
     tokenizer.current += 1;
     return result;
@@ -57,3 +63,11 @@ fn tokenizeNumber(tokenizer: *@This()) void {
         if (!is_number) break;
     }
 }
+
+// fn getInteger(tokenizer: *@This(), token: Token) i128 {
+//     var copy = tokenizer.*;
+//     copy.current = token.start;
+//     copy.tokenizeNumber();
+//     const end = copy.current;
+//     return std.fmt.parseInt(i128, tokenizer.source[token.start..end], 10) catch unreachable;
+// } 
