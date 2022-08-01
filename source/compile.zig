@@ -61,6 +61,7 @@ const Parser = struct {
 
         var opp = switch (parser.current.kind) {
             .plus, .minus, .asterisk, .slash => parser.current,
+            .eof => return,
             else => std.debug.panic("Not a valid binary operator: {any}", .{parser.current.kind}),
         };
         parser.advance();
