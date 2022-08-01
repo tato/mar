@@ -23,7 +23,7 @@ pub fn writeInt(cw: *Chunk, comptime T: type, val: T) !void {
 }
 
 pub fn writeLoad(cw: *Chunk, val: i64) !void {
-    try cw.write(.load);
+    try cw.write(.push);
     try cw.writeInt(i64, val);
 }
 

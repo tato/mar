@@ -22,10 +22,13 @@ pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
         vm.ip += 1;
 
         switch (instr) {
-            .load => {
+            .push => {
                 const val = std.mem.readIntLittle(i64, code[vm.ip..][0..8]);
                 vm.ip += 8;
                 try vm.stack.append(vm.allocator, val);
+            },
+            .pop => {
+                _ = vm.stack.pop();
             },
             .add => {
                 const right = vm.stack.pop();

@@ -19,5 +19,6 @@ test "print" {
     try std.testing.expectEqual(Token{ .kind = .left_paren, .start = 14 }, tokenizer.next());
     try std.testing.expectEqual(Token{ .kind = .integer, .start = 15 }, tokenizer.next());
     try std.testing.expectEqual(Token{ .kind = .right_paren, .start = 16 }, tokenizer.next());
+    try std.testing.expectEqual(Token{ .kind = .newline, .start = 17 }, tokenizer.next());
     try std.testing.expectEqual(Token{ .kind = .eof, .start = 17 }, tokenizer.next());
 }

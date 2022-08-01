@@ -10,7 +10,7 @@ pub fn next(tokenizer: *@This()) Token {
             ' ', '\r', '\t' => continue,
             else => break,
         }
-    } else return Token{ .kind = .eof, .start = tokenizer.current };
+    } else return tokenizer.getEof();
 
     var result = Token{ .kind = undefined, .start = tokenizer.current };
 
@@ -74,11 +74,17 @@ pub fn next(tokenizer: *@This()) Token {
                 return result;
             },
         }
-    } else {
-        result.kind = .eof;
-        return result;
-    }
+    } else return tokenizer.getEof();
 
+    return result;
+}
+
+fn getEof(tokenizer: *@This()) Token {
+    var result = Token{ .kind = .eof, .start = @intCast(u32, tokenizer.source.len) };
+    if (tokenizer.current == tokenizer.source.len) {
+        result.kind = .newline;
+        tokenizer.current += 1;
+    }
     return result;
 }
 

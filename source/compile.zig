@@ -6,7 +6,8 @@ const bytecode = @import("bytecode.zig");
 
 pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!bytecode.Chunk {
     var parser = Parser.init(allocator, source);
-    try parser.expression();
+
+    while (!parser.match(.eof)) try parser.declaration();
     try parser.chunk.write(.exit);
 
     if (build_options.dump)
@@ -35,6 +36,16 @@ const Parser = struct {
         };
     }
 
+    fn check(parser: *Parser, kind: Token.Kind) bool {
+        return parser.current.kind == kind;
+    }
+
+    fn match(parser: *Parser, kind: Token.Kind) bool {
+        if (!parser.check(kind)) return false;
+        parser.advance();
+        return true;
+    }
+
     fn advance(parser: *Parser) void {
         parser.previous = parser.current;
         while (true) {
@@ -53,6 +64,30 @@ const Parser = struct {
         std.debug.panic("Something went wrong 👹: '{s}'", .{message});
     }
 
+    fn declaration(parser: *Parser) !void {
+        try parser.statement();
+    }
+
+    fn statement(parser: *Parser) !void {
+        if (parser.match(.print)) {
+            try parser.printStatement();
+        } else {
+            try parser.expressionStatement();
+        }
+    }
+
+    fn printStatement(parser: *Parser) !void {
+        try parser.expression();
+        parser.consume(.newline, "Expect newline after value.");
+        try parser.chunk.write(.print);
+    }
+
+    fn expressionStatement(parser: *Parser) !void {
+        try parser.expression();
+        parser.consume(.newline, "Expect newline after expression.");
+        try parser.chunk.write(.pop);
+    }
+
     fn expression(parser: *Parser) std.mem.Allocator.Error!void {
         if (parser.current.kind == .left_paren) {
             parser.advance();
@@ -66,7 +101,7 @@ const Parser = struct {
 
         var opp = switch (parser.current.kind) {
             .plus, .minus, .asterisk, .slash => parser.current,
-            .eof => return,
+            .eof, .newline => return,
             else => std.debug.panic("Not a valid binary operator: {any}", .{parser.current.kind}),
         };
         parser.advance();
