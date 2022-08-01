@@ -3,27 +3,6 @@ const Token = @import("Token.zig");
 const Tokenizer = @import("Tokenizer.zig");
 const CodeWriter = @import("CodeWriter.zig");
 
-pub const Ast = struct {
-    root: Node.Index,
-    nodes: []const Node,
-
-    const Node = struct {
-        token: Token,
-        left: Index,
-        right: Index,
-
-        const Index = enum(u32) {
-            empty = std.math.maxInt(u32),
-            _,
-        };
-    };
-
-    pub fn deinit(ast: *Ast, allocator: std.mem.Allocator) void {
-        allocator.free(ast.nodes);
-        ast.* = undefined;
-    }
-};
-
 pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]const u8 {
     var parser = Parser.init(allocator, source);
     try parser.expression();
