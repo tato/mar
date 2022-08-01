@@ -1,22 +1,22 @@
 const std = @import("std");
 const Token = @import("Token.zig");
 const Tokenizer = @import("Tokenizer.zig");
-const CodeWriter = @import("CodeWriter.zig");
+const bytecode = @import("bytecode.zig");
 
-pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]const u8 {
+pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!bytecode.Chunk {
     var parser = Parser.init(allocator, source);
     try parser.expression();
-    try parser.code_writer.write(.exit);
-    return parser.code_writer.toOwnedSlice();
+    try parser.chunk.write(.exit);
+    parser.chunk.code.shrinkAndFree(parser.chunk.code.items.len);
+    return parser.chunk;
 }
-
 
 const Parser = struct {
     allocator: std.mem.Allocator,
     tokenizer: Tokenizer,
     current: Token,
     previous: Token,
-    code_writer: CodeWriter,
+    chunk: bytecode.Chunk,
     
     fn init(allocator: std.mem.Allocator, source: []const u8) Parser {
         var tokenizer = Tokenizer{ .source = source };
@@ -26,7 +26,7 @@ const Parser = struct {
             .tokenizer = tokenizer,
             .current = token,
             .previous = token,
-            .code_writer = CodeWriter.init(allocator),
+            .chunk = bytecode.Chunk.init(allocator),
         };
     }
 
@@ -55,7 +55,7 @@ const Parser = struct {
             parser.consume(.right_paren, "Expected right paren");
         } else {
             const val = parser.tokenizer.getInteger(parser.current);
-            try parser.code_writer.writeLoad(val);
+            try parser.chunk.writeLoad(val);
             parser.advance();
         }
 
@@ -72,15 +72,15 @@ const Parser = struct {
             parser.consume(.right_paren, "Expected right paren");
         } else {
             const val = parser.tokenizer.getInteger(parser.current);
-            try parser.code_writer.writeLoad(val);
+            try parser.chunk.writeLoad(val);
             parser.advance();
         }
 
         switch (opp.kind) {
-            .plus => try parser.code_writer.write(.add),
-            .minus => try parser.code_writer.write(.sub),
-            .asterisk => try parser.code_writer.write(.mul),
-            .slash => try parser.code_writer.write(.div),
+            .plus => try parser.chunk.write(.add),
+            .minus => try parser.chunk.write(.sub),
+            .asterisk => try parser.chunk.write(.mul),
+            .slash => try parser.chunk.write(.div),
             else => unreachable,
         }
     }

@@ -24,29 +24,29 @@ pub fn main() !void {
 
 fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!void {
     var code = try compile.compile(allocator, source);
-    defer allocator.free(code);
+    defer code.deinit();
 
     var vm = Vm.init(allocator);
     defer vm.deinit();
 
-    try vm.run(code);
+    try vm.run(code.code.items);
 }
 
 fn runInterpreterTest(source: []const u8, expect_stack: []const i64) !void {
     const allocator = std.testing.allocator;
 
     var code = try compile.compile(allocator, source);
-    defer allocator.free(code);
+    defer code.deinit();
 
     var vm = Vm.init(allocator);
     defer vm.deinit();
 
-    try vm.run(code);
+    try vm.run(code.code.items);
     try std.testing.expectEqualSlices(i64, expect_stack, vm.stack.items);
 }
 
 comptime {
-    _ = @import("bytecode.zig");
+    _ = @import("bytecode_tests.zig");
 }
 
 test "toosimple" {
