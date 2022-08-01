@@ -1,6 +1,7 @@
 const std = @import("std");
 const Token = @import("Token.zig");
 const Tokenizer = @import("Tokenizer.zig");
+const CodeWriter = @import("CodeWriter.zig");
 
 pub const Ast = struct {
     root: Node.Index,
@@ -23,15 +24,11 @@ pub const Ast = struct {
     }
 };
 
-pub fn parse(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!Ast {
-
+pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error![]const u8 {
     var parser = Parser.init(allocator, source);
-
-    const root = try parser.expression();
-    return Ast{
-        .nodes = parser.node_list.toOwnedSlice(allocator),
-        .root = root,
-    };
+    try parser.expression();
+    try parser.code_writer.write(.exit);
+    return parser.code_writer.toOwnedSlice();
 }
 
 
@@ -40,17 +37,17 @@ const Parser = struct {
     tokenizer: Tokenizer,
     current: Token,
     previous: Token,
-    panic_mode: bool = false,
-    node_list: std.ArrayListUnmanaged(Ast.Node) = .{},
+    code_writer: CodeWriter,
     
     fn init(allocator: std.mem.Allocator, source: []const u8) Parser {
         var tokenizer = Tokenizer{ .source = source };
         const token = tokenizer.next();
         return Parser{
             .allocator = allocator,
-            .tokenizer = Tokenizer{ .source = source },
+            .tokenizer = tokenizer,
             .current = token,
             .previous = token,
+            .code_writer = CodeWriter.init(allocator),
         };
     }
 
@@ -59,9 +56,7 @@ const Parser = struct {
         while (true) {
             parser.current = parser.tokenizer.next();
             if (parser.current.kind != .err) break;
-
-            parser.panic_mode = true;
-            std.log.err("something something error", .{});
+            @panic("Something went wrong 👹");
         }
     }
 
@@ -71,57 +66,42 @@ const Parser = struct {
             return;
         }
 
-        parser.panic_mode = true;
-        std.log.err("something auuugh consume: {s}", .{message});
+        std.debug.panic("Something went wrong 👹: '{s}'", .{message});
     }
 
-    fn expression(parser: *Parser) std.mem.Allocator.Error!Ast.Node.Index {
-        const left = if (parser.current.kind == .left_paren) blk: {
+    fn expression(parser: *Parser) std.mem.Allocator.Error!void {
+        if (parser.current.kind == .left_paren) {
             parser.advance();
-            const idx = try parser.expression();
+            try parser.expression();
             parser.consume(.right_paren, "Expected right paren");
-            break :blk idx;
-        } else blk: {
-            const node = Ast.Node{
-                .token = parser.current,
-                .left = .empty,
-                .right = .empty,
-            };
-            try parser.node_list.append(parser.allocator, node);
-
+        } else {
+            const val = parser.tokenizer.getInteger(parser.current);
+            try parser.code_writer.writeLoad(val);
             parser.advance();
+        }
 
-            break :blk @intToEnum(Ast.Node.Index, parser.node_list.items.len - 1);
-        };
-
-        var opp = Ast.Node {
-            .token = undefined,
-            .left = left,  
-            .right = undefined,   
+        var opp = switch (parser.current.kind) {
+            .plus, .minus, .asterisk, .slash => parser.current,
+            else => std.debug.panic("Not a valid binary operator: {any}", .{parser.current.kind}),
         };
         parser.advance();
-        switch (parser.current.kind) {
-            .plus, .minus, .asterisk, .slash => opp.token = parser.current,
-            else => std.debug.panic("Not Valid: {any}", .{parser.current.kind}),
-        }
         
-        const right = if (parser.current.kind == .left_paren) blk: {
+        if (parser.current.kind == .left_paren) {
             parser.advance();
-            const idx = try parser.expression();
+            try parser.expression();
             parser.consume(.right_paren, "Expected right paren");
-            break :blk idx;
-        } else blk: {
-            const node = Ast.Node{
-                .token = parser.current,
-                .left = .empty,
-                .right = .empty,
-            };
-            try parser.node_list.append(parser.allocator, node);
-            break :blk @intToEnum(Ast.Node.Index, parser.node_list.items.len - 1);
-        };
-        opp.right = right;
+        } else {
+            const val = parser.tokenizer.getInteger(parser.current);
+            try parser.code_writer.writeLoad(val);
+            parser.advance();
+        }
 
-        try parser.node_list.append(parser.allocator, opp);
-        return @intToEnum(Ast.Node.Index, parser.node_list.items.len - 1);
+        switch (opp.kind) {
+            .plus => try parser.code_writer.write(.add),
+            .minus => try parser.code_writer.write(.sub),
+            .asterisk => try parser.code_writer.write(.mul),
+            .slash => try parser.code_writer.write(.div),
+            else => unreachable,
+        }
     }
 };

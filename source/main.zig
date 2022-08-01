@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const compile = @import("compile.zig");
-const bytecode = @import("bytecode.zig");
+const Vm = @import("Vm.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -18,29 +18,48 @@ pub fn main() !void {
         std.os.exit(0);
     }
 
-    const source = try std.fs.cwd().readFileAlloc(arena.allocator(), args[1], 1<<32);
+    const source = try std.fs.cwd().readFileAlloc(arena.allocator(), args[1], 1 << 32);
     try runInterpreter(arena.allocator(), source);
 }
 
-fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) !void {
-    var ast = try compile.parse(allocator, source);
-    defer ast.deinit(allocator);
+fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!void {
+    var code = try compile.compile(allocator, source);
+    defer allocator.free(code);
 
-    std.debug.print("{any}\n", .{ast});
+    var vm = Vm.init(allocator);
+    defer vm.deinit();
+
+    try vm.run(code);
 }
 
-test {
-    std.testing.refAllDecls(bytecode);
+fn runInterpreterTest(source: []const u8, expect_stack: []const i64) !void {
+    const allocator = std.testing.allocator;
+
+    var code = try compile.compile(allocator, source);
+    defer allocator.free(code);
+
+    var vm = Vm.init(allocator);
+    defer vm.deinit();
+
+    try vm.run(code);
+    try std.testing.expectEqualSlices(i64, expect_stack, vm.stack.items);
+}
+
+comptime {
+    _ = @import("bytecode.zig");
 }
 
 test "toosimple" {
-    if (true) return error.SkipZigTest;
-    const program = @embedFile("../mar/toosimple.mar");
-    try runInterpreter(std.testing.allocator, program);
+    const program = "1 + 1";
+    try runInterpreterTest(program, &.{2});
+}
+
+test "aparen" {
+    const program = "(1 + 1)";
+    try runInterpreterTest(program, &.{2});
 }
 
 test "hello" {
-    if (true) return error.SkipZigTest;
-    const program = @embedFile("../mar/hello.mar");
-    try runInterpreter(std.testing.allocator, program);
+    const program = "(1 + (111 - 3)) * (2 / 1)";
+    try runInterpreterTest(program, &.{218});
 }

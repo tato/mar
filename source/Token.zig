@@ -2,7 +2,7 @@ kind: Kind,
 start: u32,
 
 pub const Kind = enum(u32) {
-    number,
+    integer,
     plus,
     minus,
     asterisk,
