@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const parse = @import("parse.zig");
+const compile = @import("compile.zig");
+const bytecode = @import("bytecode.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -22,18 +23,24 @@ pub fn main() !void {
 }
 
 fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) !void {
-    var ast = try parse.parse(allocator, source);
+    var ast = try compile.parse(allocator, source);
     defer ast.deinit(allocator);
 
     std.debug.print("{any}\n", .{ast});
 }
 
+test {
+    std.testing.refAllDecls(bytecode);
+}
+
 test "toosimple" {
+    if (true) return error.SkipZigTest;
     const program = @embedFile("../mar/toosimple.mar");
     try runInterpreter(std.testing.allocator, program);
 }
 
 test "hello" {
+    if (true) return error.SkipZigTest;
     const program = @embedFile("../mar/hello.mar");
     try runInterpreter(std.testing.allocator, program);
 }
