@@ -13,3 +13,7 @@ pub const OpCode = enum(u8) {
     exit,
 };
 
+pub const Value = union(enum) {
+    integer: i64,
+    boolean: bool,
+};

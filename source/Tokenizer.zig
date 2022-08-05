@@ -64,6 +64,10 @@ pub fn next(tokenizer: *@This()) Token {
                     const ident = tokenizer.source[result.start..tokenizer.current];
                     if (std.mem.eql(u8, "print", ident)) {
                         result.kind = .print;
+                    } else if (std.mem.eql(u8, "true", ident)) {
+                        result.kind = .@"true";
+                    } else if (std.mem.eql(u8, "false", ident)) {
+                        result.kind = .@"false";
                     } else {
                         result.kind = .identifier;
                     }

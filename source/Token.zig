@@ -6,6 +6,8 @@ pub const Kind = enum(u32) {
     identifier,
     print,
     integer,
+    @"true",
+    @"false",
     plus,
     minus,
     asterisk,

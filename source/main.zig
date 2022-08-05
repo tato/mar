@@ -7,8 +7,9 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
 
-
     const args = try std.process.argsAlloc(arena.allocator());
+    defer std.process.argsFree(arena.allocator(), args);
+
     if (args.len < 2) {
         const stdout = std.io.getStdOut();
         try stdout.writeAll(

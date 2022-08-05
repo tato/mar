@@ -1,5 +1,5 @@
 const std = @import("std");
-const OpCode = @import("../bytecode.zig").OpCode;
+const bytecode = @import("../bytecode.zig");
 
 const Chunk = @This();
 
@@ -14,7 +14,7 @@ pub fn deinit(cw: *Chunk) void {
     cw.* = undefined;
 }
 
-pub fn write(cw: *Chunk, instr: OpCode) !void {
+pub fn write(cw: *Chunk, instr: bytecode.OpCode) !void {
     try cw.code.append(@enumToInt(instr));
 }
 
@@ -32,7 +32,7 @@ pub fn dump(chunk: *Chunk, writer: anytype) !void {
     const code = chunk.code.items;
 
     while (ip < code.len) {
-        const instr = @intToEnum(OpCode, code[ip]);
+        const instr = @intToEnum(bytecode.OpCode, code[ip]);
         ip += 1;
 
         switch (instr) {
