@@ -47,3 +47,19 @@ test "printing" {
     ;
     try std.testing.expectEqualSlices(u8, expected_output, result.output);
 }
+
+test "unary minus" {
+    var code = bytecode.Chunk.init(std.testing.allocator);
+    defer code.deinit();
+
+    try code.writeLoad(11);
+    try code.write(.neg);
+    try code.writeLoad(-101);
+    try code.write(.neg);
+    try code.write(.exit);
+
+    var result = try runTest(code);
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{ -11, 101 }, result.stack);
+}

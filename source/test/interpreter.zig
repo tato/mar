@@ -56,3 +56,17 @@ test "more expression" {
     ;
     try std.testing.expectEqualSlices(u8, expected, result.output);
 }
+
+test "unary minus" {
+    const program =
+        \\print(-11)
+    ;
+    var result = try runInterpreterTest(program);
+    defer result.deinit();
+
+    const expected =
+        \\-11
+        \\
+    ;
+    try std.testing.expectEqualSlices(u8, expected, result.output);
+}

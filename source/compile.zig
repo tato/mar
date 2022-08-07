@@ -92,19 +92,19 @@ const Parser = struct {
     }
 
     fn expression(parser: *Parser) std.mem.Allocator.Error!void {
-        var nodes: std.ArrayListUnmanaged(ExpressionAstNode) = .{};
+        var nodes: std.ArrayListUnmanaged(ExpressionNode) = .{};
         defer nodes.deinit(parser.allocator);
 
-        const root = try parser.getExpressionAst(&nodes);
-        try parser.lowerExpressionAst(nodes.items, root);
+        const root = try parser.parseExpressionTree(&nodes);
+        try parser.lowerExpression(nodes.items, root);
     }
 
-    fn lowerExpressionAst(
+    fn lowerExpression(
         parser: *Parser,
-        nodes: []const ExpressionAstNode,
-        node_idx: usize,
+        nodes: []const ExpressionNode,
+        node_idx: ExpressionNode.Index,
     ) std.mem.Allocator.Error!void {
-        const ast_node = &nodes[node_idx];
+        const ast_node = &nodes[node_idx.toUsize().?];
 
         switch (ast_node.op.kind) {
             .integer => {
@@ -115,28 +115,41 @@ const Parser = struct {
             else => {},
         }
 
-        try parser.lowerExpressionAst(nodes, ast_node.left);
-        try parser.lowerExpressionAst(nodes, ast_node.right);
+        if (ast_node.left != .none) try parser.lowerExpression(nodes, ast_node.left);
+        try parser.lowerExpression(nodes, ast_node.right);
         switch (ast_node.op.kind) {
             .plus => try parser.chunk.write(.add),
-            .minus => try parser.chunk.write(.sub),
+            .minus => if (ast_node.left == .none)
+                try parser.chunk.write(.neg)
+            else
+                try parser.chunk.write(.sub),
             .asterisk => try parser.chunk.write(.mul),
             .slash => try parser.chunk.write(.div),
             else => unreachable,
         }
     }
 
-    fn getExpressionAst(parser: *Parser, nodes: *std.ArrayListUnmanaged(ExpressionAstNode)) std.mem.Allocator.Error!usize {
+    fn parseExpressionTree(parser: *Parser, nodes: *std.ArrayListUnmanaged(ExpressionNode)) std.mem.Allocator.Error!ExpressionNode.Index {
         const left = if (parser.current.kind == .left_paren) blk: {
             parser.advance();
-            const index = try parser.getExpressionAst(nodes);
+            const index = try parser.parseExpressionTree(nodes);
             parser.consume(.right_paren, "Expected right paren");
             break :blk index;
         } else if (parser.current.kind == .integer) blk: {
-            try nodes.append(parser.allocator, .{ .op = parser.current, .left = undefined, .right = undefined });
+            try nodes.append(parser.allocator, .{ .op = parser.current, .left = .none, .right = .none });
             parser.advance();
-            break :blk nodes.items.len - 1;
-        } else unreachable;
+            break :blk ExpressionNode.Index.fromUsize(nodes.items.len - 1);
+        } else switch (parser.current.kind) {
+            .minus => blk: {
+                const minus_tok = parser.current;
+                parser.advance();
+                try nodes.append(parser.allocator, .{ .op = parser.current, .left = .none, .right = .none });
+                try nodes.append(parser.allocator, .{ .op = minus_tok, .left = .none, .right = ExpressionNode.Index.fromUsize(nodes.items.len - 1) });
+                parser.advance();
+                break :blk ExpressionNode.Index.fromUsize(nodes.items.len - 1);
+            },
+            else => unreachable,
+        };
 
         var op = switch (parser.current.kind) {
             .plus, .minus, .asterisk, .slash => parser.current,
@@ -147,12 +160,12 @@ const Parser = struct {
         var right_precedence: Precedence = .constant;
         const right = if (parser.current.kind == .left_paren) blk: {
             parser.advance();
-            const index = try parser.getExpressionAst(nodes);
+            const index = try parser.parseExpressionTree(nodes);
             parser.consume(.right_paren, "Expected right paren");
             break :blk index;
         } else blk: {
-            const index = try parser.getExpressionAst(nodes);
-            right_precedence = switch (nodes.items[index].op.kind) {
+            const index = try parser.parseExpressionTree(nodes);
+            right_precedence = switch (nodes.items[index.toUsize().?].op.kind) {
                 .integer => .constant,
                 .plus, .minus => .add_sub,
                 .asterisk, .slash => .mul_div,
@@ -170,20 +183,35 @@ const Parser = struct {
         if (@enumToInt(right_precedence) > @enumToInt(op_precedence)) {
             // normal
             try nodes.append(parser.allocator, .{ .op = op, .left = left, .right = right });
-            return nodes.items.len - 1;
+            return ExpressionNode.Index.fromUsize(nodes.items.len - 1);
         } else {
             // swap
-            try nodes.append(parser.allocator, .{ .op = op, .left = left, .right = nodes.items[right].left });
-            nodes.items[right].left = nodes.items.len - 1;
+            try nodes.append(parser.allocator, .{ .op = op, .left = left, .right = nodes.items[right.toUsize().?].left });
+            nodes.items[right.toUsize().?].left = ExpressionNode.Index.fromUsize(nodes.items.len - 1);
             return right;
         }
     }
 };
 
-const ExpressionAstNode = struct {
+const ExpressionNode = struct {
     op: Token,
-    left: usize,
-    right: usize,
+    left: Index,
+    right: Index,
+
+    const Index = enum(usize) {
+        none = std.math.maxInt(usize),
+        _,
+
+        fn fromUsize(idx: usize) Index {
+            std.debug.assert(idx != @enumToInt(Index.none));
+            return @intToEnum(Index, idx);
+        }
+
+        fn toUsize(idx: Index) ?usize {
+            if (idx == .none) return null;
+            return @enumToInt(idx);
+        }
+    };
 };
 
 const Precedence = enum {
