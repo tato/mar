@@ -10,6 +10,12 @@ pub const OpCode = enum(u8) {
     mul,
     div,
     neg,
+    eq,
+    ne,
+    lt,
+    gt,
+    lte,
+    gte,
     print,
     exit,
 };

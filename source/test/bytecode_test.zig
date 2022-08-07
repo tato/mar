@@ -63,3 +63,21 @@ test "unary minus" {
 
     try std.testing.expectEqualSlices(i64, &.{ -11, 101 }, result.stack);
 }
+
+test "comparison ops" {
+    var code = bytecode.Chunk.init(std.testing.allocator);
+    defer code.deinit();
+
+    try code.writeLoad(11);
+    try code.write(.neg);
+    try code.writeLoad(-101);
+    try code.write(.gt);
+    try code.writeLoad(1);
+    try code.write(.eq);
+    try code.write(.exit);
+
+    var result = try runTest(code);
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(i64, &.{1}, result.stack);
+}

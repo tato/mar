@@ -39,7 +39,7 @@ fn runInterpreter(allocator: std.mem.Allocator, source: []const u8) !void {
 }
 
 comptime {
-    _ = @import("test/bytecode.zig");
-    _ = @import("test/interpreter.zig");
-    _ = @import("test/tokenizer.zig");
+    _ = @import("test/bytecode_test.zig");
+    _ = @import("test/interpreter_test.zig");
+    _ = @import("test/tokenizer_test.zig");
 }

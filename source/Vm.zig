@@ -55,6 +55,36 @@ pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
                 const stack = vm.stack.items;
                 stack[stack.len - 1] = -%stack[stack.len - 1];
             },
+            .eq => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] == right) 1 else 0;
+            },
+            .ne => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] != right) 1 else 0;
+            },
+            .gt => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] > right) 1 else 0;
+            },
+            .lt => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] < right) 1 else 0;
+            },
+            .gte => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] >= right) 1 else 0;
+            },
+            .lte => {
+                const right = vm.stack.pop();
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = if (stack[stack.len - 1] <= right) 1 else 0;
+            },
             .print => {
                 const top = vm.stack.pop();
                 try output.print("{d}\n", .{top});
