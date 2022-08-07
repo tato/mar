@@ -23,7 +23,7 @@ const Parser = struct {
     current: Token,
     previous: Token,
     chunk: bytecode.Chunk,
-    
+
     fn init(allocator: std.mem.Allocator, source: []const u8) Parser {
         var tokenizer = Tokenizer{ .source = source };
         const token = tokenizer.next();
@@ -92,34 +92,32 @@ const Parser = struct {
     }
 
     fn expression(parser: *Parser) std.mem.Allocator.Error!void {
-        if (parser.current.kind == .left_paren) {
-            parser.advance();
-            try parser.expression();
-            parser.consume(.right_paren, "Expected right paren");
-        } else {
-            const val = parser.tokenizer.getInteger(parser.current);
-            try parser.chunk.writeLoad(val);
-            parser.advance();
+        var nodes: std.ArrayListUnmanaged(ExpressionAstNode) = .{};
+        defer nodes.deinit(parser.allocator);
+
+        const root = try parser.getExpressionAst(&nodes);
+        try parser.lowerExpressionAst(nodes.items, root);
+    }
+
+    fn lowerExpressionAst(
+        parser: *Parser,
+        nodes: []const ExpressionAstNode,
+        node_idx: usize,
+    ) std.mem.Allocator.Error!void {
+        const ast_node = &nodes[node_idx];
+
+        switch (ast_node.op.kind) {
+            .integer => {
+                const val = parser.tokenizer.getInteger(ast_node.op);
+                try parser.chunk.writeLoad(val);
+                return;
+            },
+            else => {},
         }
 
-        var opp = switch (parser.current.kind) {
-            .plus, .minus, .asterisk, .slash => parser.current,
-            .eof, .newline => return,
-            else => std.debug.panic("Not a valid binary operator: {any}", .{parser.current.kind}),
-        };
-        parser.advance();
-        
-        if (parser.current.kind == .left_paren) {
-            parser.advance();
-            try parser.expression();
-            parser.consume(.right_paren, "Expected right paren");
-        } else {
-            const val = parser.tokenizer.getInteger(parser.current);
-            try parser.chunk.writeLoad(val);
-            parser.advance();
-        }
-
-        switch (opp.kind) {
+        try parser.lowerExpressionAst(nodes, ast_node.left);
+        try parser.lowerExpressionAst(nodes, ast_node.right);
+        switch (ast_node.op.kind) {
             .plus => try parser.chunk.write(.add),
             .minus => try parser.chunk.write(.sub),
             .asterisk => try parser.chunk.write(.mul),
@@ -127,4 +125,69 @@ const Parser = struct {
             else => unreachable,
         }
     }
+
+    fn getExpressionAst(parser: *Parser, nodes: *std.ArrayListUnmanaged(ExpressionAstNode)) std.mem.Allocator.Error!usize {
+        const left = if (parser.current.kind == .left_paren) blk: {
+            parser.advance();
+            const index = try parser.getExpressionAst(nodes);
+            parser.consume(.right_paren, "Expected right paren");
+            break :blk index;
+        } else if (parser.current.kind == .integer) blk: {
+            try nodes.append(parser.allocator, .{ .op = parser.current, .left = undefined, .right = undefined });
+            parser.advance();
+            break :blk nodes.items.len - 1;
+        } else unreachable;
+
+        var op = switch (parser.current.kind) {
+            .plus, .minus, .asterisk, .slash => parser.current,
+            else => return left,
+        };
+        parser.advance();
+
+        var right_precedence: Precedence = .constant;
+        const right = if (parser.current.kind == .left_paren) blk: {
+            parser.advance();
+            const index = try parser.getExpressionAst(nodes);
+            parser.consume(.right_paren, "Expected right paren");
+            break :blk index;
+        } else blk: {
+            const index = try parser.getExpressionAst(nodes);
+            right_precedence = switch (nodes.items[index].op.kind) {
+                .integer => .constant,
+                .plus, .minus => .add_sub,
+                .asterisk, .slash => .mul_div,
+                else => unreachable,
+            };
+            break :blk index;
+        };
+
+        const op_precedence: Precedence = switch (op.kind) {
+            .plus, .minus => .add_sub,
+            .asterisk, .slash => .mul_div,
+            else => unreachable,
+        };
+
+        if (@enumToInt(right_precedence) > @enumToInt(op_precedence)) {
+            // normal
+            try nodes.append(parser.allocator, .{ .op = op, .left = left, .right = right });
+            return nodes.items.len - 1;
+        } else {
+            // swap
+            try nodes.append(parser.allocator, .{ .op = op, .left = left, .right = nodes.items[right].left });
+            nodes.items[right].left = nodes.items.len - 1;
+            return right;
+        }
+    }
+};
+
+const ExpressionAstNode = struct {
+    op: Token,
+    left: usize,
+    right: usize,
+};
+
+const Precedence = enum {
+    add_sub,
+    mul_div,
+    constant,
 };
