@@ -70,3 +70,12 @@ test "unary minus" {
     ;
     try std.testing.expectEqualSlices(u8, expected, result.output);
 }
+
+test "same precedence" {
+    var result = try runInterpreterTest(
+        \\print(3 - 2 - 1)
+    );
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(u8, "0\n", result.output);
+}
