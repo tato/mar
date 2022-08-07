@@ -61,6 +61,7 @@ const Parser = struct {
             return;
         }
 
+        std.debug.print("Expect {any}, found {any}.\n", .{ kind, parser.current.kind });
         std.debug.panic("Something went wrong 👹: '{s}'", .{message});
     }
 
@@ -77,7 +78,9 @@ const Parser = struct {
     }
 
     fn printStatement(parser: *Parser) !void {
+        parser.consume(.left_paren, "Expect '(' before argument list.");
         try parser.expression();
+        parser.consume(.right_paren, "Expect ')' after argument list.");
         parser.consume(.newline, "Expect newline after value.");
         try parser.chunk.write(.print);
     }
