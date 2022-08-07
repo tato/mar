@@ -4,7 +4,7 @@ const Token = @import("Token.zig");
 const Tokenizer = @import("Tokenizer.zig");
 const bytecode = @import("bytecode.zig");
 
-pub fn compile(allocator: std.mem.Allocator, source: []const u8) std.mem.Allocator.Error!bytecode.Chunk {
+pub fn compile(allocator: std.mem.Allocator, source: []const u8) !bytecode.Chunk {
     var parser = Parser.init(allocator, source);
 
     while (!parser.match(.eof)) try parser.declaration();
@@ -91,7 +91,7 @@ const Parser = struct {
         try parser.chunk.write(.pop);
     }
 
-    fn expression(parser: *Parser) std.mem.Allocator.Error!void {
+    fn expression(parser: *Parser) !void {
         var nodes: std.ArrayListUnmanaged(ExpressionNode) = .{};
         defer nodes.deinit(parser.allocator);
 
@@ -213,10 +213,50 @@ const Parser = struct {
         parser: *Parser,
         nodes: []const ExpressionNode,
         node_idx: ExpressionNode.Index,
-    ) !void {
-        _ = parser;
-        _ = nodes;
-        _ = node_idx;
+    ) error{invalid_operand_type}!void {
+        const ast_node = &nodes[node_idx.toUsize().?];
+
+        switch (ast_node.op.kind) {
+            .integer, .@"false", .@"true" => return,
+            else => {},
+        }
+
+        if (ast_node.left != .none) try parser.checkExpressionTree(nodes, ast_node.left);
+        if (ast_node.right != .none) try parser.checkExpressionTree(nodes, ast_node.right);
+
+        switch (ast_node.op.kind) {
+            .plus,
+            .minus,
+            .asterisk,
+            .slash,
+            .greater_than,
+            .greater_than_or_equal,
+            .lesser_than,
+            .lesser_than_or_equal,
+            => {
+                if (ast_node.left.toUsize()) |left| {
+                    if (getOperandResultType(nodes[left].op) != .integer) {
+                        std.debug.print("Left operand of '{s}' must be an integer.\n", .{"?"});
+                        return error.invalid_operand_type;
+                    }
+                }
+                if (ast_node.right.toUsize()) |right| {
+                    if (getOperandResultType(nodes[right].op) != .integer) {
+                        std.debug.print("Right operand of '{s}' must be an integer.\n", .{"?"});
+                        return error.invalid_operand_type;
+                    }
+                }
+            },
+            .equals_equals, .not_equals => {
+                const left_type = getOperandResultType(nodes[ast_node.left.toUsize().?].op);
+                const right_type = getOperandResultType(nodes[ast_node.right.toUsize().?].op);
+                if (left_type != right_type) {
+                    std.debug.print("Both operands of equality operator '{s}' must be of the same type.\n", .{"?"});
+                    return error.invalid_operand_type;
+                }
+            },
+            else => unreachable,
+        }
     }
 };
 
@@ -241,25 +281,6 @@ fn getOperandResultType(token: Token) Type {
     };
 }
 
-fn getOperationType(token: Token) Type {
-    return switch (token.kind) {
-        .plus,
-        .minus,
-        .asterisk,
-        .slash,
-        => .integer,
-
-        .equals_equals,
-        .not_equals,
-        .greater_than,
-        .lesser_than,
-        .greater_than_or_equal,
-        .lesser_than_or_equal,
-        => .boolean,
-
-        else => unreachable,
-    };
-}
 fn getTokenPrecedence(token: Token) Precedence {
     return switch (token.kind) {
         .integer, .@"false", .@"true" => .constant,

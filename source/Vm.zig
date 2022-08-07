@@ -86,6 +86,8 @@ pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
                 stack[stack.len - 1] = if (stack[stack.len - 1] <= right) 1 else 0;
             },
             .print => {
+                // TODO: print prints everything as integers
+                // it should print booleans as "true", "false"
                 const top = vm.stack.pop();
                 try output.print("{d}\n", .{top});
             },
