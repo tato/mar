@@ -96,6 +96,7 @@ const Parser = struct {
         defer nodes.deinit(parser.allocator);
 
         const root = try parser.parseExpressionTree(&nodes);
+        try parser.checkExpressionTree(nodes.items, root);
         try parser.lowerExpression(nodes.items, root);
     }
 
@@ -112,6 +113,14 @@ const Parser = struct {
                 try parser.chunk.writeLoad(val);
                 return;
             },
+            .@"false" => {
+                try parser.chunk.writeLoad(0);
+                return;
+            },
+            .@"true" => {
+                try parser.chunk.writeLoad(1);
+                return;
+            },
             else => {},
         }
 
@@ -125,6 +134,12 @@ const Parser = struct {
                 try parser.chunk.write(.sub),
             .asterisk => try parser.chunk.write(.mul),
             .slash => try parser.chunk.write(.div),
+            .equals_equals => try parser.chunk.write(.eq),
+            .not_equals => try parser.chunk.write(.ne),
+            .greater_than => try parser.chunk.write(.gt),
+            .greater_than_or_equal => try parser.chunk.write(.gte),
+            .lesser_than => try parser.chunk.write(.lt),
+            .lesser_than_or_equal => try parser.chunk.write(.lte),
             else => unreachable,
         }
     }
@@ -135,11 +150,12 @@ const Parser = struct {
             const index = try parser.parseExpressionTree(nodes);
             parser.consume(.right_paren, "Expected right paren");
             break :blk index;
-        } else if (parser.current.kind == .integer) blk: {
-            try nodes.append(parser.allocator, .{ .op = parser.current, .left = .none, .right = .none });
-            parser.advance();
-            break :blk ExpressionNode.Index.fromUsize(nodes.items.len - 1);
         } else switch (parser.current.kind) {
+            .integer, .@"false", .@"true" => blk: {
+                try nodes.append(parser.allocator, .{ .op = parser.current, .left = .none, .right = .none });
+                parser.advance();
+                break :blk ExpressionNode.Index.fromUsize(nodes.items.len - 1);
+            },
             .minus => blk: {
                 const minus_tok = parser.current;
                 parser.advance();
@@ -152,7 +168,17 @@ const Parser = struct {
         };
 
         var op = switch (parser.current.kind) {
-            .plus, .minus, .asterisk, .slash => parser.current,
+            .plus,
+            .minus,
+            .asterisk,
+            .slash,
+            .equals_equals,
+            .not_equals,
+            .greater_than,
+            .greater_than_or_equal,
+            .lesser_than,
+            .lesser_than_or_equal,
+            => parser.current,
             else => return left,
         };
         parser.advance();
@@ -165,20 +191,11 @@ const Parser = struct {
             break :blk index;
         } else blk: {
             const index = try parser.parseExpressionTree(nodes);
-            right_precedence = switch (nodes.items[index.toUsize().?].op.kind) {
-                .integer => .constant,
-                .plus, .minus => .add_sub,
-                .asterisk, .slash => .mul_div,
-                else => unreachable,
-            };
+            right_precedence = getTokenPrecedence(nodes.items[index.toUsize().?].op);
             break :blk index;
         };
 
-        const op_precedence: Precedence = switch (op.kind) {
-            .plus, .minus => .add_sub,
-            .asterisk, .slash => .mul_div,
-            else => unreachable,
-        };
+        const op_precedence: Precedence = getTokenPrecedence(op);
 
         if (@enumToInt(right_precedence) > @enumToInt(op_precedence)) {
             // normal
@@ -191,7 +208,67 @@ const Parser = struct {
             return right;
         }
     }
+
+    fn checkExpressionTree(
+        parser: *Parser,
+        nodes: []const ExpressionNode,
+        node_idx: ExpressionNode.Index,
+    ) !void {
+        _ = parser;
+        _ = nodes;
+        _ = node_idx;
+    }
 };
+
+fn getOperandResultType(token: Token) Type {
+    return switch (token.kind) {
+        .integer,
+        .plus,
+        .minus,
+        => .integer,
+
+        .@"false",
+        .@"true",
+        .equals_equals,
+        .not_equals,
+        .greater_than,
+        .lesser_than,
+        .greater_than_or_equal,
+        .lesser_than_or_equal,
+        => .boolean,
+
+        else => unreachable,
+    };
+}
+
+fn getOperationType(token: Token) Type {
+    return switch (token.kind) {
+        .plus,
+        .minus,
+        .asterisk,
+        .slash,
+        => .integer,
+
+        .equals_equals,
+        .not_equals,
+        .greater_than,
+        .lesser_than,
+        .greater_than_or_equal,
+        .lesser_than_or_equal,
+        => .boolean,
+
+        else => unreachable,
+    };
+}
+fn getTokenPrecedence(token: Token) Precedence {
+    return switch (token.kind) {
+        .integer, .@"false", .@"true" => .constant,
+        .plus, .minus => .add_sub,
+        .asterisk, .slash => .mul_div,
+        .equals_equals, .not_equals, .greater_than, .lesser_than, .greater_than_or_equal, .lesser_than_or_equal => .comparison,
+        else => unreachable,
+    };
+}
 
 const ExpressionNode = struct {
     op: Token,
@@ -215,7 +292,13 @@ const ExpressionNode = struct {
 };
 
 const Precedence = enum {
+    comparison,
     add_sub,
     mul_div,
     constant,
+};
+
+const Type = enum {
+    integer,
+    boolean,
 };

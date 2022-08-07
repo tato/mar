@@ -79,3 +79,15 @@ test "same precedence" {
 
     try std.testing.expectEqualSlices(u8, "0\n", result.output);
 }
+
+test "compare" {
+    var result = try runInterpreterTest(
+        \\print(3 - 2 == 10 / 10)
+        \\print(10*10 == 101 - 30)
+        \\print(31 < 28)
+        \\print(42 >= -1000)
+    );
+    defer result.deinit();
+
+    try std.testing.expectEqualSlices(u8, "1\n0\n0\n1\n", result.output);
+}
