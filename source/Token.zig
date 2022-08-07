@@ -14,6 +14,12 @@ pub const Kind = enum(u32) {
     slash,
     left_paren,
     right_paren,
+    equals_equals,
+    not_equals,
+    greater_than,
+    lesser_than,
+    greater_than_or_equal,
+    lesser_than_or_equal,
     err,
     eof,
 };

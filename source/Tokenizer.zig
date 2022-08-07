@@ -52,6 +52,44 @@ pub fn next(tokenizer: *@This()) Token {
                 result.kind = .right_paren;
                 break;
             },
+            '=' => if (tokenizer.peekOrZero() == '=') {
+                tokenizer.current += 2;
+                result.kind = .equals_equals;
+                break;
+            } else {
+                std.debug.print("Unexpected character: '='", .{});
+                tokenizer.current += 1;
+                result.kind = .err;
+                break;
+            },
+            '!' => if (tokenizer.peekOrZero() == '=') {
+                tokenizer.current += 2;
+                result.kind = .not_equals;
+                break;
+            } else {
+                std.debug.print("Unexpected character: '!'", .{});
+                tokenizer.current += 1;
+                result.kind = .err;
+                break;
+            },
+            '>' => if (tokenizer.peekOrZero() == '=') {
+                tokenizer.current += 2;
+                result.kind = .greater_than_or_equal;
+                break;
+            } else {
+                tokenizer.current += 1;
+                result.kind = .greater_than;
+                break;
+            },
+            '<' => if (tokenizer.peekOrZero() == '=') {
+                tokenizer.current += 2;
+                result.kind = .lesser_than_or_equal;
+                break;
+            } else {
+                tokenizer.current += 1;
+                result.kind = .lesser_than;
+                break;
+            },
             else => {
                 if (std.ascii.isDigit(c)) {
                     tokenizer.tokenizeInteger();
@@ -74,6 +112,8 @@ pub fn next(tokenizer: *@This()) Token {
                     break;
                 }
 
+                std.debug.print("Unexpected character: '{c}'\n", .{c});
+                tokenizer.current += 1;
                 result.kind = .err;
                 return result;
             },
@@ -81,6 +121,12 @@ pub fn next(tokenizer: *@This()) Token {
     } else return tokenizer.getEof();
 
     return result;
+}
+
+fn peekOrZero(tokenizer: @This()) u8 {
+    if (tokenizer.source.len > tokenizer.current + 1)
+        return tokenizer.source[tokenizer.current + 1];
+    return 0;
 }
 
 fn getEof(tokenizer: *@This()) Token {
