@@ -32,23 +32,24 @@ pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
             },
             .add => {
                 const right = vm.stack.pop();
-                const left = vm.stack.pop();
-                try vm.stack.append(vm.allocator, left + right);
+                const stack = vm.stack.items;
+                stack[stack.len - 1] +%= right;
             },
             .sub => {
                 const right = vm.stack.pop();
-                const left = vm.stack.pop();
-                try vm.stack.append(vm.allocator, left - right);
+                const stack = vm.stack.items;
+                stack[stack.len - 1] -%= right;
             },
             .mul => {
                 const right = vm.stack.pop();
-                const left = vm.stack.pop();
-                try vm.stack.append(vm.allocator, left * right);
+                const stack = vm.stack.items;
+                stack[stack.len - 1] *%= right;
             },
             .div => {
                 const right = vm.stack.pop();
-                const left = vm.stack.pop();
-                try vm.stack.append(vm.allocator, @divFloor(left, right));
+                std.debug.assert(right != 0);
+                const stack = vm.stack.items;
+                stack[stack.len - 1] = @divFloor(stack[stack.len - 1], right);
             },
             .neg => {
                 const stack = vm.stack.items;
