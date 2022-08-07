@@ -53,7 +53,7 @@ pub fn run(vm: *Vm, chunk: bytecode.Chunk, output: anytype) !void {
             },
             .neg => {
                 const stack = vm.stack.items;
-                stack[stack.len - 1] = -stack[stack.len - 1];
+                stack[stack.len - 1] = -%stack[stack.len - 1];
             },
             .print => {
                 const top = vm.stack.pop();
